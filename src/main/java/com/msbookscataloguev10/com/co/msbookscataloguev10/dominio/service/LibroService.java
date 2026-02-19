@@ -4,6 +4,7 @@ package com.msbookscataloguev10.com.co.msbookscataloguev10.dominio.service;
 //IMPORTACIÓN DE LIBRERIAS:
 import com.msbookscataloguev10.com.co.msbookscataloguev10.dominio.dto.LibroDTO;
 import com.msbookscataloguev10.com.co.msbookscataloguev10.dominio.dto.RespuestaDTO;
+import com.msbookscataloguev10.com.co.msbookscataloguev10.persistencia.entity.Libro;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import java.util.List;
@@ -63,5 +64,7 @@ public interface LibroService {
     RespuestaDTO agregarCategoriaALibro(Long idLibro, Long idCategoria);
     RespuestaDTO eliminarCategoriaDeLibro(Long idLibro, Long idCategoria);
     RespuestaDTO reemplazarCategoriasDeLibro(Long idLibro, List<Long> categoriasIds);
+
+    List<LibroDTO> listaTodo();
 
 }

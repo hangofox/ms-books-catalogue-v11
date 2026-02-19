@@ -40,14 +40,14 @@ public class LibroDAO {
     public Libro libro(LibroDTO libroDTO){
         Libro libro = new Libro();
         libro.setIdLibro(libroDTO.getIdLibro());
-        libro.setTituloLibro(libroDTO.getTituloLibro().toUpperCase());
+        libro.setTituloLibro(libroDTO.getTituloLibro());
         libro.setFechaPublicacionLibro(libroDTO.getFechaPublicacionLibro());
         libro.setSinopsisLibro(libroDTO.getSinopsisLibro());
         libro.setCodigoIsbnLibro(libroDTO.getCodigoIsbnLibro());
         libro.setPrecioLibro(libroDTO.getPrecioLibro());
         libro.setFormatoLibro(libroDTO.getFormatoLibro());
         libro.setNombreArchivoImagenLibro(libroDTO.getNombreArchivoImagenLibro());
-        libro.setEstadoLibro(libroDTO.getEstadoLibro().toUpperCase());
+        libro.setEstadoLibro(libroDTO.getEstadoLibro());
 
         // MAPEAR CATEGORIAS SI EXISTEN IDS EN EL DT
         if  (libroDTO.getCategoriasIds() != null && !libroDTO.getCategoriasIds().isEmpty()) {
@@ -71,14 +71,14 @@ public class LibroDAO {
     public LibroDTO libroDTO(Libro libro){
         LibroDTO libroDTO = new LibroDTO();
         libroDTO.setIdLibro(libro.getIdLibro());
-        libroDTO.setTituloLibro(libro.getTituloLibro().toUpperCase());
+        libroDTO.setTituloLibro(libro.getTituloLibro());
         libroDTO.setFechaPublicacionLibro(libro.getFechaPublicacionLibro());
         libroDTO.setSinopsisLibro(libro.getSinopsisLibro());
         libroDTO.setCodigoIsbnLibro(libro.getCodigoIsbnLibro());
         libroDTO.setPrecioLibro(libro.getPrecioLibro());
         libroDTO.setFormatoLibro(libro.getFormatoLibro());
         libroDTO.setNombreArchivoImagenLibro(libro.getNombreArchivoImagenLibro());
-        libroDTO.setEstadoLibro(libro.getEstadoLibro().toUpperCase());
+        libroDTO.setEstadoLibro(libro.getEstadoLibro());
         
         //MAPEAR EL AUTOR SI EXISTE EN LA ENTIDAD:
         if (libro.getAutor() != null) {

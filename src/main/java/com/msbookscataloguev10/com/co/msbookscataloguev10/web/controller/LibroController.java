@@ -157,4 +157,11 @@ public class LibroController {
         return new ResponseEntity<>(respuesta, httpStatus);
     }
 
+    @GetMapping("/libros/todos")
+    public ResponseEntity<List<LibroDTO>> listarUsuarios() {
+        //List<UsuarioDTO> usuarios = usuarioService.listarUsuarios();
+        List<LibroDTO> listaLibros = libroService.listaTodo();
+        return new ResponseEntity<>(listaLibros, HttpStatus.OK);
+    }
+
 }

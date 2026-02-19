@@ -301,6 +301,13 @@ public class LibroServiceImpl implements LibroService {
         
         return new RespuestaDTO("CATEGORIAS REEMPLAZADAS CORRECTAMENTE", true);
     }
+
+    @Override
+    public List<LibroDTO> listaTodo() {
+        List<Libro> listaLibros = libroRepository.findByEstadoLibro("VISIBLE");
+        return listaLibros.stream().map(libroDAO::libroDTO).toList();
+    }
+
     private Sort buildSort(String orderBy, String orderMode) {
         Sort.Direction dir = "desc".equalsIgnoreCase(orderMode)
                 ? Sort.Direction.DESC

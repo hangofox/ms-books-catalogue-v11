@@ -23,7 +23,7 @@ public class CategoriaDAO {
     public Categoria categoria(CategoriaDTO categoriaDTO){
         Categoria categoria = new Categoria();
         categoria.setIdCategoria(categoriaDTO.getIdCategoria());
-        categoria.setNombreCategoria(categoriaDTO.getNombreCategoria().toUpperCase());
+        categoria.setNombreCategoria(categoriaDTO.getNombreCategoria());
         
         return categoria;
     }
@@ -38,7 +38,7 @@ public class CategoriaDAO {
     public CategoriaDTO categoriaDTO(Categoria categoria){
         CategoriaDTO categoriaDTO = new CategoriaDTO();
         categoriaDTO.setIdCategoria(categoria.getIdCategoria());
-        categoriaDTO.setNombreCategoria(categoria.getNombreCategoria().toUpperCase());
+        categoriaDTO.setNombreCategoria(categoria.getNombreCategoria());
         
         return categoriaDTO;
     }
