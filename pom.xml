@@ -9,11 +9,11 @@
 		<!--<version>2.6.11</version>-->
 		<relativePath/>
 	</parent>
-	<groupId>com.msbookscataloguev10.mil.co.msbookscataloguev10</groupId>
-	<artifactId>msbookscataloguev10</artifactId>
+	<groupId>com.msbookscataloguev11.mil.co.msbookscataloguev11</groupId>
+	<artifactId>msbookscataloguev11</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>msbookscataloguev10</name>
-	<description>LIBRERIA RELATOS DE PAPEL CATALOGO V1.0</description>
+	<name>msbookscataloguev11</name>
+	<description>LIBRERIA RELATOS DE PAPEL CATALOGO V1.1</description>
 	<!--Cambiado el empaquetado de JAR a WAR.-->
 	<packaging>jar</packaging>
 	<properties>
@@ -21,21 +21,25 @@
 		<spring-cloud.version>2023.0.0</spring-cloud.version>
 	</properties>
 	<dependencies>
+		<!--DEPENDENCIAS PARA OPENSEARCH (REEMPLAZA ELASTICSEARCH).-->
 		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa</artifactId>
+			<groupId>org.opensearch.client</groupId>
+			<artifactId>spring-data-opensearch-starter</artifactId>
+			<version>1.4.0</version>
+		</dependency>
+		<!--Nuevo cliente Java de OpenSearch (OSC). Requerido explicitamente porque
+		    spring-data-opensearch-starter lo declara como optional.
+		    Reemplaza RestHighLevelClient (HLRC) que causaba NoClassDefFoundError en JsonXContent.-->
+		<dependency>
+			<groupId>org.opensearch.client</groupId>
+			<artifactId>opensearch-java</artifactId>
+			<version>2.10.4</version>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-jdbc</artifactId>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
 		</dependency>
-		<!--DEPENDENCIA AGREGADA PARA MYSQL.-->
-		<dependency>
-			<groupId>com.mysql</groupId>
-			<artifactId>mysql-connector-j</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-		<!--FIN DEPENDENCIA AGREGADA.-->
+		<!--FIN DEPENDENCIAS OPENSEARCH.-->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
