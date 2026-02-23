@@ -64,10 +64,39 @@ public class LibroServiceImpl implements LibroService {
     
     //LISTAR TODOS LOS LIBROS SIN PAGINACIÓN (PARA SELECTS):
     @Override
-    public List<LibroDTO> listarLibrosNoPaginacion(String orderBy, String orderMode) {
+    public List<LibroDTO> listarLibrosNoPaginacion(
+            String keyword,
+            String titulo,
+            String sinopsisLibro,
+            String codigoIsbnLibro,
+            String formatoLibro,
+            String estadoLibro,
+            String fechaPublicacionLibro,
+            Long idCategoria,
+            String nombreCategoria,
+            Long idAutor,
+            String nombresAutor,
+            String primerApellidoAutor,
+            String segundoApellidoAutor,
+            Double minPrecio,
+            Double maxPrecio,
+            String orderBy,
+            String orderMode
+    ) {
         Sort sort = buildSort(orderBy, orderMode);
+        //Obtener todos los libros ordenados.
         List<Libro> listaLibros = StreamSupport.stream(libroRepository.findAll(sort).spliterator(), false).toList();
-        return listaLibros.stream().map(libroDAO::libroDTO).toList();
+        //Filtrar por todos los criterios (misma lógica que el listado con paginación).
+        return listaLibros.stream()
+            .filter(libro -> filterByAllCriteria(
+                libro, keyword, titulo, sinopsisLibro, codigoIsbnLibro,
+                formatoLibro, estadoLibro, fechaPublicacionLibro,
+                idCategoria, nombreCategoria, idAutor,
+                nombresAutor, primerApellidoAutor, segundoApellidoAutor,
+                minPrecio, maxPrecio
+            ))
+            .map(libroDAO::libroDTO)
+            .toList();
     }
     
     private Sort buildSort(String orderBy, String orderMode) {

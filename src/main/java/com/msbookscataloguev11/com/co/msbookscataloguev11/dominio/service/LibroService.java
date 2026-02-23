@@ -22,8 +22,27 @@ public interface LibroService {
     //CREACIÓN, LECTURA (LISTAR Y CONSULTAR), EDICIÓN Y ELIMINACIÓN DE UN REGISTRO:
     //MÉTODO PARA LISTAR/FILTRAR/ORDENAR CATEGORIAS SIN PAGINACIÓN (PARA SELECTS):
     List<LibroDTO> listaTodo();
+    //MÉTODO ÚNICO PARA LISTAR/FILTRAR/ORDENAR LIBROS SIN PAGINACIÓN (PARA SELECTS):
+    List<LibroDTO> listarLibrosNoPaginacion(
+            String keyword,
+            String titulo,
+            String sinopsisLibro,
+            String codigoIsbnLibro,
+            String formatoLibro,
+            String estadoLibro,
+            String fechaPublicacionLibro,
+            Long idCategoria,
+            String nombreCategoria,
+            Long idAutor,
+            String nombresAutor,
+            String primerApellidoAutor,
+            String segundoApellidoAutor,
+            Double minPrecio,
+            Double maxPrecio,
+            String orderBy,
+            String orderMode
+    );
     //MÉTODO ÚNICO PARA LISTAR/FILTRAR/ORDENAR/PAGINAR LIBROS:
-    List<LibroDTO> listarLibrosNoPaginacion(String orderBy, String orderMode);
     Slice<LibroDTO> listarLibros(
             String keyword,
             String titulo,

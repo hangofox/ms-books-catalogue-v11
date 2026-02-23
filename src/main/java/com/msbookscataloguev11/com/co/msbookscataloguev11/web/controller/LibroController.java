@@ -38,10 +38,31 @@ public class LibroController {
     //ENDPOINT LISTAR TODOS LOS LIBROS SIN PAGINACION (PARA SELECTS DEL FRONTEND):
     @GetMapping("/libros/lista")
     public ResponseEntity<List<LibroDTO>> listarLibrosNoPaginacion(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String  titulo,
+            @RequestParam(required = false) String  sinopsisLibro,
+            @RequestParam(required = false) String  codigoIsbnLibro,
+            @RequestParam(required = false) String  formatoLibro,
+            @RequestParam(required = false) String  estadoLibro,
+            @RequestParam(required = false) String  fechaPublicacionLibro,
+            @RequestParam(required = false) Long    idCategoria,
+            @RequestParam(required = false) String  nombreCategoria,
+            @RequestParam(required = false) Long    idAutor,
+            @RequestParam(required = false) String  nombresAutor,
+            @RequestParam(required = false) String  primerApellidoAutor,
+            @RequestParam(required = false) String  segundoApellidoAutor,
+            @RequestParam(required = false) Double  minPrecio,
+            @RequestParam(required = false) Double  maxPrecio,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false, defaultValue = "asc") String orderMode
     ) {
-        List<LibroDTO> listaLibros = libroService.listarLibrosNoPaginacion(orderBy, orderMode);
+        List<LibroDTO> listaLibros = libroService.listarLibrosNoPaginacion(
+                keyword, titulo,
+                sinopsisLibro, codigoIsbnLibro, formatoLibro, estadoLibro, fechaPublicacionLibro,
+                idCategoria, nombreCategoria, idAutor,
+                nombresAutor, primerApellidoAutor, segundoApellidoAutor,
+                minPrecio, maxPrecio, orderBy, orderMode
+        );
         return new ResponseEntity<>(listaLibros, HttpStatus.OK);
     }
     
