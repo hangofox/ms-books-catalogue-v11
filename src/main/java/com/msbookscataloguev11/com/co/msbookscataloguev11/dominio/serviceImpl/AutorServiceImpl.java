@@ -11,8 +11,6 @@ import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.entity.Au
 import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.repository.AutorRepository;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.utils.IdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -38,14 +36,10 @@ public class AutorServiceImpl implements AutorService {
     //MÉTODO ÚNICO PARA LISTAR/FILTRAR/ORDENAR/PAGINAR AUTORES:
     @Override
     public Slice<AutorDTO> listarAutores(String keyword, String orderBy, String orderMode, Pageable pageable) {
-        //Construir sorting:
-        Sort sort = buildSort(orderBy, orderMode);
-        Pageable pageableWithSort = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-        
-        //Obtener todos los autores (ES filtra y ordena):
-        List<Autor> allAutores = StreamSupport.stream(autorRepository.findAll(pageableWithSort).spliterator(), false).toList();
-        
-        //Filtrar por keyword si existe:
+        //Obtener TODOS los autores sin sorting de OS (los campos Search_As_You_Type no son sorteables en OS).
+        List<Autor> allAutores = StreamSupport.stream(autorRepository.findAll().spliterator(), false).toList();
+
+        //Filtrar por keyword si existe.
         List<Autor> filteredAutores = allAutores;
         if (keyword != null && !keyword.trim().isEmpty()) {
             String keywordLower = keyword.toLowerCase();
@@ -56,18 +50,55 @@ public class AutorServiceImpl implements AutorService {
                     (a.getSegundoApellidoAutor() != null && a.getSegundoApellidoAutor().toLowerCase().contains(keywordLower))
                 ).toList();
         }
-        
+
+        //Ordenar en memoria (evita delegar el sort a OS con campos no sorteables).
+        filteredAutores = sortAutoresInMemory(filteredAutores, orderBy, orderMode);
+
         //Paginar.
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), filteredAutores.size());
         List<Autor> paginatedAutores = (start < filteredAutores.size()) ?
             filteredAutores.subList(start, end) : List.of();
-            
-        //Convertir a DTO
+
+        //Convertir a DTO.
         List<AutorDTO> content = paginatedAutores.stream().map(autorDAO::autorDTO).toList();
-        
+
         boolean hasNext = end < filteredAutores.size();
         return new SliceImpl<>(content, pageable, hasNext);
+    }
+
+    //ORDENAR AUTORES EN MEMORIA:
+    private List<Autor> sortAutoresInMemory(List<Autor> autores, String orderBy, String orderMode) {
+        boolean desc = "desc".equalsIgnoreCase(orderMode);
+        String field = (orderBy == null || orderBy.isBlank()) ? "id" : orderBy.toLowerCase();
+
+        List<Autor> sorted = new java.util.ArrayList<>(autores);
+        sorted.sort((a, b) -> {
+            int cmp;
+            switch (field) {
+                case "nombres":
+                    String na = a.getNombresAutor() != null ? a.getNombresAutor().toLowerCase() : "";
+                    String nb = b.getNombresAutor() != null ? b.getNombresAutor().toLowerCase() : "";
+                    cmp = na.compareTo(nb);
+                    break;
+                case "primerapellido":
+                    String pa = a.getPrimerApellidoAutor() != null ? a.getPrimerApellidoAutor().toLowerCase() : "";
+                    String pb = b.getPrimerApellidoAutor() != null ? b.getPrimerApellidoAutor().toLowerCase() : "";
+                    cmp = pa.compareTo(pb);
+                    break;
+                case "segundoapellido":
+                    String sa = a.getSegundoApellidoAutor() != null ? a.getSegundoApellidoAutor().toLowerCase() : "";
+                    String sb2 = b.getSegundoApellidoAutor() != null ? b.getSegundoApellidoAutor().toLowerCase() : "";
+                    cmp = sa.compareTo(sb2);
+                    break;
+                default:
+                    Long ia = a.getIdAutor() != null ? a.getIdAutor() : 0L;
+                    Long ib = b.getIdAutor() != null ? b.getIdAutor() : 0L;
+                    cmp = ia.compareTo(ib);
+            }
+            return desc ? -cmp : cmp;
+        });
+        return sorted;
     }
     
     //CREAR REGISTRO:
@@ -145,23 +176,5 @@ public class AutorServiceImpl implements AutorService {
         return respuestaDTO;
     }
     
-    private Sort buildSort(String orderBy, String orderMode) {
-        Sort.Direction dir = "desc".equalsIgnoreCase(orderMode) ?
-            Sort.Direction.DESC : Sort.Direction.ASC;
-            
-        if (orderBy == null || orderBy.isBlank() || "id".equalsIgnoreCase(orderBy)) {
-            return Sort.by(dir, "idAutor");
-        }
-        
-        switch (orderBy.toLowerCase()) {
-            case "nombres":
-                return Sort.by(dir, "nombresAutor");
-            case "primerapellido":
-                return Sort.by(dir, "primerApellidoAutor");
-            case "segundoapellido":
-                return Sort.by(dir, "segundoApellidoAutor");
-            default:
-                return Sort.by(dir, "idAutor");
-        }
-    }
 }
+
