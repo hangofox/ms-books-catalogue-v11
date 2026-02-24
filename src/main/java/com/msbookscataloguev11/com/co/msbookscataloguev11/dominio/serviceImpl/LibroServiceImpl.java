@@ -193,13 +193,16 @@ public class LibroServiceImpl implements LibroService {
             Double minPrecio,
             Double maxPrecio
     ) {
-        //Filtro por keyword (busca en título, sinopsis, ISBN).
+        //Filtro por keyword (busca en título, sinopsis, ISBN, nombres y apellidos del autor).
         if (keyword != null && !keyword.trim().isEmpty()) {
             String kw = keyword.toLowerCase();
             boolean matchesKeyword =
                 (libro.getTituloLibro() != null && libro.getTituloLibro().toLowerCase().contains(kw)) ||
                 (libro.getSinopsisLibro() != null && libro.getSinopsisLibro().toLowerCase().contains(kw)) ||
-                (libro.getCodigoIsbnLibro() != null && libro.getCodigoIsbnLibro().toLowerCase().contains(kw));
+                (libro.getCodigoIsbnLibro() != null && libro.getCodigoIsbnLibro().toLowerCase().contains(kw)) ||
+                (libro.getAutor() != null && libro.getAutor().getNombresAutor() != null && libro.getAutor().getNombresAutor().toLowerCase().contains(kw)) ||
+                (libro.getAutor() != null && libro.getAutor().getPrimerApellidoAutor() != null && libro.getAutor().getPrimerApellidoAutor().toLowerCase().contains(kw)) ||
+                (libro.getAutor() != null && libro.getAutor().getSegundoApellidoAutor() != null && libro.getAutor().getSegundoApellidoAutor().toLowerCase().contains(kw));
             if (!matchesKeyword) return false;
         }
         
