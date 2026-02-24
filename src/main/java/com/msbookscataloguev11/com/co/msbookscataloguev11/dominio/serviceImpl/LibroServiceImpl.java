@@ -145,10 +145,9 @@ public class LibroServiceImpl implements LibroService {
     ) {
         //Construir sorting.
         Sort sort = buildSort(orderBy, orderMode);
-        Pageable pageableWithSort = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-        
-        //Obtener todos los libros (ES filtra y ordena)
-        List<Libro> allLibros = StreamSupport.stream(libroRepository.findAll(pageableWithSort).spliterator(), false).toList();
+
+        //Obtener TODOS los libros ordenados (filtrado en memoria para soportar todos los criterios).
+        List<Libro> allLibros = StreamSupport.stream(libroRepository.findAll(sort).spliterator(), false).toList();
         
         //Filtrar por todos los criterios.
         List<Libro> filteredLibros = allLibros.stream()
@@ -417,7 +416,7 @@ public class LibroServiceImpl implements LibroService {
         int end = Math.min(start + pageable.getPageSize(), filteredLibros.size());
         List<Libro> paginatedLibros = (start < filteredLibros.size()) ?
             filteredLibros.subList(start, end) : List.of();
-
+            
         //Convertir a DTO.
         List<LibroDTO> content = paginatedLibros.stream().map(libroDAO::libroDTO).toList();
         
