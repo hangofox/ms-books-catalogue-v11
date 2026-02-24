@@ -83,7 +83,6 @@ public interface LibroService {
     RespuestaDTO eliminarLibro(Long idLibro);
     //MÉTODO PARA ELIMINACIÓN MASIVA DE LIBROS Y SUS RELACIONES (TRUNCATE):
     RespuestaDTO eliminarTodosLosLibros();
-
     //GESTIÓN DE RELACIÓN LIBRO - CATEGORIA:
     RespuestaDTO agregarCategoriaALibro(Long idLibro, Long idCategoria);
     RespuestaDTO eliminarCategoriaDeLibro(Long idLibro, Long idCategoria);
