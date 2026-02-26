@@ -2,6 +2,7 @@
 package com.msbookscataloguev11.com.co.msbookscataloguev11.web.controller;
 
 //IMPORTACIÓN DE LIBRERIAS:
+import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.FacetDTO;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.RespuestaDTO;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.LibroDTO;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.service.LibroService;
@@ -209,5 +210,27 @@ public class LibroController {
         RespuestaDTO respuesta = libroService.reemplazarCategoriasDeLibro(idLibro, categoriasIds);
         HttpStatus httpStatus = respuesta.isBanderaexito() ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
         return new ResponseEntity<>(respuesta, httpStatus);
+    }
+
+    //ENDPOINT SUGERENCIAS DE LIBROS (CRITERIO 1 - SEARCH-AS-YOU-TYPE / FULL-TEXT CON OPENSEARCH):
+    //Usa MultiMatchQuery con tipo bool_prefix sobre el campo tituloLibro (search_as_you_type)
+    //y sus subcampos _2gram y _3gram generados automáticamente por OpenSearch.
+    //Ejemplo: GET /libros/sugerencias?q=don  →  sugiere libros con títulos que empiezan con "don"
+    @GetMapping("/libros/sugerencias")
+    public ResponseEntity<List<LibroDTO>> sugerenciasLibros(
+            @RequestParam(defaultValue = "") String q) {
+        List<LibroDTO> sugerencias = libroService.sugerenciasLibros(q);
+        return new ResponseEntity<>(sugerencias, HttpStatus.OK);
+    }
+
+    //ENDPOINT FACETS DE LIBROS (CRITERIO 2 - FACETED SEARCH CON OPENSEARCH AGGREGATIONS):
+    //Ejecuta TermsAggregation sobre formatoLibro, estadoLibro y
+    //NestedAggregation + TermsAggregation sobre categorias.nombreCategoria.
+    //Retorna los valores únicos de cada campo con el conteo de documentos.
+    //Ejemplo: GET /libros/facets  →  { campo: "por_formato", buckets: [{valor:"DIGITAL",cantidad:5},...] }
+    @GetMapping("/libros/facets")
+    public ResponseEntity<List<FacetDTO>> facetsLibros() {
+        List<FacetDTO> facets = libroService.facetsLibros();
+        return new ResponseEntity<>(facets, HttpStatus.OK);
     }
 }

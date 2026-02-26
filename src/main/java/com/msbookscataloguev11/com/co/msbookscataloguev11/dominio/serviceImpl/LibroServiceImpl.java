@@ -3,6 +3,7 @@ package com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.serviceImpl;
 
 //IMPORTACIÓN DE LIBRERIAS:
 import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.Constantes.MensajesConstantes;
+import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.FacetDTO;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.RespuestaDTO;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.LibroDTO;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.service.LibroService;
@@ -13,7 +14,17 @@ import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.entity.Li
 import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.repository.CategoriaRepository;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.repository.LibroRepository;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.utils.IdGenerator;
+import org.opensearch.client.opensearch._types.aggregations.Aggregate;
+import org.opensearch.client.opensearch._types.aggregations.Aggregation;
+import org.opensearch.client.opensearch._types.aggregations.StringTermsBucket;
+import org.opensearch.client.opensearch._types.query_dsl.Query;
+import org.opensearch.client.opensearch._types.query_dsl.TextQueryType;
+import org.opensearch.data.client.osc.NativeQuery;
+import org.opensearch.data.client.osc.OpenSearchAggregation;
+import org.opensearch.data.client.osc.OpenSearchAggregations;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -54,6 +65,9 @@ public class LibroServiceImpl implements LibroService {
 
     @Autowired//INYECTAMOS EL REPOSITORIO.
     private LibroxCategoriaRepository libroxCategoriaRepository;
+
+    @Autowired//INYECTAMOS LAS OPERACIONES DE OPENSEARCH PARA QUERIES NATIVAS Y AGGREGATIONS.
+    private ElasticsearchOperations elasticsearchOperations;
     
     //LISTAR TODOS LOS LIBROS VISIBLES:
     @Override
@@ -145,7 +159,7 @@ public class LibroServiceImpl implements LibroService {
     ) {
         //Construir sorting.
         Sort sort = buildSort(orderBy, orderMode);
-
+        
         //Obtener TODOS los libros ordenados (filtrado en memoria para soportar todos los criterios).
         List<Libro> allLibros = StreamSupport.stream(libroRepository.findAll(sort).spliterator(), false).toList();
         
@@ -640,7 +654,7 @@ public class LibroServiceImpl implements LibroService {
         
         Optional<Libro> libroOpt = libroRepository.findByIdLibro(idLibro);
         if (!libroOpt.isPresent()) {
-            return new RespuestaDTO("LIBRO NO ENCONTRADO", false);
+           return new RespuestaDTO("LIBRO NO ENCONTRADO", false);
         }
         
         Libro libro = libroOpt.get();
@@ -650,7 +664,7 @@ public class LibroServiceImpl implements LibroService {
             for (Long idCat : categoriasIds) {
                 Optional<Categoria> catOpt = categoriaRepository.findByIdCategoria(idCat);
                 if (!catOpt.isPresent()) {
-                   return new RespuestaDTO("CATEGORIA NO ENCONTRADA: " + idCat, false);
+                    return new RespuestaDTO("CATEGORIA NO ENCONTRADA: " + idCat, false);
                 }
                 
                 Categoria cat = catOpt.get();
@@ -665,5 +679,110 @@ public class LibroServiceImpl implements LibroService {
         libroRepository.save(libro);
         
         return new RespuestaDTO("CATEGORIAS REEMPLAZADAS CORRECTAMENTE", true);
+    }
+    
+    /**
+    * SUGERENCIAS DE LIBROS (CRITERIO 1 - FULL-TEXT SEARCH / SEARCH-AS-YOU-TYPE):
+    * Usa MultiMatchQuery de OpenSearch con tipo bool_prefix sobre el campo
+    * tituloLibro (search_as_you_type) y sus subcampos _2gram y _3gram.
+    * Retorna hasta 10 libros cuyos títulos coinciden con el texto ingresado.
+    */
+    @Override
+    public List<LibroDTO> sugerenciasLibros(String q) {
+        if (q == null || q.trim().isEmpty()) return List.of();
+        
+        //Construir MultiMatchQuery tipo bool_prefix: busca el prefijo del texto
+        //en el título y sus subcampos de n-gramas generados por OpenSearch.
+        Query query = Query.of(qb -> qb
+            .multiMatch(mm -> mm
+                .query(q)
+                .fields(List.of(
+                    "tituloLibro",
+                    "tituloLibro._2gram",
+                    "tituloLibro._3gram"
+                ))
+                .type(TextQueryType.BoolPrefix)
+            )
+        );
+        
+        //NativeQuery: envoltura de spring-data-opensearch para queries nativas OSC.
+        NativeQuery nativeQuery = NativeQuery.builder()
+            .withQuery(query)
+            .withPageable(PageRequest.of(0, 10))
+            .build();
+            
+        //Ejecutar búsqueda en OpenSearch y mapear resultados a DTO.
+        SearchHits<Libro> hits = elasticsearchOperations.search(nativeQuery, Libro.class);
+        return hits.getSearchHits().stream()
+            .map(hit -> libroDAO.libroDTO(hit.getContent()))
+            .toList();
+    }
+    
+    /**
+    * FACETS DE LIBROS (CRITERIO 2 - FACETED SEARCH CON OPENSEARCH AGGREGATIONS):
+    * Ejecuta tres TermsAggregation en un solo query a OpenSearch:
+    *   - por_formato   : agrupa libros por formatoLibro (Keyword)  → ej: DIGITAL=5, IMPRESO=12
+    *   - por_estado    : agrupa libros por estadoLibro  (Keyword)  → ej: VISIBLE=15, OCULTO=2
+    *   - por_categoria : NestedAggregation sobre categorias[] + TermsAggregation por nombre
+    * Permite al frontend mostrar filtros con conteos reales sin consultas adicionales.
+    */
+    @Override
+    public List<FacetDTO> facetsLibros() {
+        
+        //Aggregation para categorias: Nested (accede al array embebido) + Terms sobre nombre.
+        Aggregation aggCategoria = new Aggregation.Builder()
+            .nested(n -> n.path("categorias"))
+            .aggregations("por_nombre", Aggregation.of(sa -> sa
+                .terms(t -> t.field("categorias.nombreCategoria").size(20))
+            ))
+            .build();
+            
+        //NativeQuery con matchAll + tres aggregations paralelas a OpenSearch.
+        NativeQuery nativeQuery = NativeQuery.builder()
+            .withQuery(Query.of(q -> q.matchAll(m -> m)))
+            .withAggregation("por_formato", Aggregation.of(a -> a
+                .terms(t -> t.field("formatoLibro").size(20))
+            ))
+            .withAggregation("por_estado", Aggregation.of(a -> a
+                .terms(t -> t.field("estadoLibro").size(20))
+            ))
+            .withAggregation("por_categoria", aggCategoria)
+            .withPageable(PageRequest.of(0, 1))
+            .build();
+            
+        //Ejecutar el query: nos interesan solo las aggregations, no los hits.
+        SearchHits<Libro> searchHits = elasticsearchOperations.search(nativeQuery, Libro.class);
+        
+        if (searchHits.getAggregations() == null) return List.of();
+        
+        //Extraer los resultados de aggregations del contenedor de OpenSearch.
+        OpenSearchAggregations osAggs = (OpenSearchAggregations) searchHits.getAggregations();
+        List<FacetDTO> result = new ArrayList<>();
+        
+        for (OpenSearchAggregation osa : osAggs.aggregations()) {
+            String aggName = osa.aggregation().getName();
+            Aggregate agg = osa.aggregation().getAggregate();
+            
+            if (agg._kind() == Aggregate.Kind.Sterms) {
+                //TermsAggregation sobre campo Keyword: extraer buckets (valor + conteo).
+                List<StringTermsBucket> buckets = agg.sterms().buckets().array();
+                List<FacetDTO.BucketDTO> bucketDTOs = buckets.stream()
+                    .map(b -> new FacetDTO.BucketDTO(b.key(), b.docCount()))
+                    .toList();
+                result.add(new FacetDTO(aggName, bucketDTOs));
+            } else if (agg._kind() == Aggregate.Kind.Nested) {
+                //NestedAggregation: acceder a la sub-aggregation "por_nombre" dentro de categorias[].
+                Aggregate subAgg = agg.nested().aggregations().get("por_nombre");
+                if (subAgg != null && subAgg._kind() == Aggregate.Kind.Sterms) {
+                    List<StringTermsBucket> buckets = subAgg.sterms().buckets().array();
+                    List<FacetDTO.BucketDTO> bucketDTOs = buckets.stream()
+                        .map(b -> new FacetDTO.BucketDTO(b.key(), b.docCount()))
+                        .toList();
+                    result.add(new FacetDTO("por_categoria", bucketDTOs));
+                }
+            }
+        }
+        
+        return result;
     }
 }

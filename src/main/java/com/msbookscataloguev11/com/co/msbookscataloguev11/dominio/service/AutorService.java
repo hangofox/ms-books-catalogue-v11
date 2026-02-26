@@ -6,6 +6,7 @@ import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.AutorDTO;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.RespuestaDTO;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import java.util.List;
 
 /**
 * @Autor HERNAN ADOLFO NUÑEZ GONZALEZ.
@@ -19,6 +20,8 @@ public interface AutorService {
     //CREACIÓN, LECTURA (LISTAR Y CONSULTAR), EDICIÓN Y ELIMINACIÓN DE UN REGISTRO:
     //MÉTODO ÚNICO PARA LISTAR/FILTRAR/ORDENAR/PAGINAR AUTORES:
     Slice<AutorDTO> listarAutores(String keyword, String orderBy, String orderMode, Pageable pageable);
+    //MÉTODO PARA SUGERENCIAS DE AUTORES (SEARCH-AS-YOU-TYPE + FULL-TEXT CON OPENSEARCH):
+    List<AutorDTO> sugerenciasAutores(String q);
     RespuestaDTO crearAutor(AutorDTO autorDTO);
     RespuestaDTO consultarAutorporId(Long idAutor);
     RespuestaDTO actualizarAutor(AutorDTO autorDTO);

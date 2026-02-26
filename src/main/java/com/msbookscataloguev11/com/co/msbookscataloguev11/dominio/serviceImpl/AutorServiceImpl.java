@@ -10,7 +10,13 @@ import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.dao.Autor
 import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.entity.Autor;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.repository.AutorRepository;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.persistencia.utils.IdGenerator;
+import org.opensearch.client.opensearch._types.query_dsl.Query;
+import org.opensearch.client.opensearch._types.query_dsl.TextQueryType;
+import org.opensearch.data.client.osc.NativeQuery;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -33,12 +39,15 @@ public class AutorServiceImpl implements AutorService {
     @Autowired//INYECTAMOS EL REPOSITORIO.
     private AutorRepository autorRepository;
     
+    @Autowired//INYECTAMOS LAS OPERACIONES DE OPENSEARCH PARA QUERIES NATIVAS.
+    private ElasticsearchOperations elasticsearchOperations;
+    
     //MÉTODO ÚNICO PARA LISTAR/FILTRAR/ORDENAR/PAGINAR AUTORES:
     @Override
     public Slice<AutorDTO> listarAutores(String keyword, String orderBy, String orderMode, Pageable pageable) {
         //Obtener TODOS los autores sin sorting de OS (los campos Search_As_You_Type no son sorteables en OS).
         List<Autor> allAutores = StreamSupport.stream(autorRepository.findAll().spliterator(), false).toList();
-
+        
         //Filtrar por keyword si existe.
         List<Autor> filteredAutores = allAutores;
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -50,28 +59,28 @@ public class AutorServiceImpl implements AutorService {
                     (a.getSegundoApellidoAutor() != null && a.getSegundoApellidoAutor().toLowerCase().contains(keywordLower))
                 ).toList();
         }
-
+        
         //Ordenar en memoria (evita delegar el sort a OS con campos no sorteables).
         filteredAutores = sortAutoresInMemory(filteredAutores, orderBy, orderMode);
-
+        
         //Paginar.
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), filteredAutores.size());
         List<Autor> paginatedAutores = (start < filteredAutores.size()) ?
             filteredAutores.subList(start, end) : List.of();
-
+            
         //Convertir a DTO.
         List<AutorDTO> content = paginatedAutores.stream().map(autorDAO::autorDTO).toList();
-
+        
         boolean hasNext = end < filteredAutores.size();
         return new SliceImpl<>(content, pageable, hasNext);
     }
-
+    
     //ORDENAR AUTORES EN MEMORIA:
     private List<Autor> sortAutoresInMemory(List<Autor> autores, String orderBy, String orderMode) {
         boolean desc = "desc".equalsIgnoreCase(orderMode);
         String field = (orderBy == null || orderBy.isBlank()) ? "id" : orderBy.toLowerCase();
-
+        
         List<Autor> sorted = new java.util.ArrayList<>(autores);
         sorted.sort((a, b) -> {
             int cmp;
@@ -176,5 +185,47 @@ public class AutorServiceImpl implements AutorService {
         return respuestaDTO;
     }
     
+    /**
+    * SUGERENCIAS DE AUTORES (CRITERIO 1 - FULL-TEXT SEARCH / SEARCH-AS-YOU-TYPE):
+    * Usa MultiMatchQuery de OpenSearch con tipo bool_prefix sobre los campos
+    * search_as_you_type (nombresAutor, primerApellidoAutor, segundoApellidoAutor)
+    * y sus subcampos _2gram y _3gram generados automáticamente por OpenSearch.
+    * Retorna hasta 10 coincidencias relevantes mientras el usuario escribe.
+    */
+    @Override
+    public List<AutorDTO> sugerenciasAutores(String q) {
+        if (q == null || q.trim().isEmpty()) return List.of();
+        
+        //Construir MultiMatchQuery tipo bool_prefix: ideal para search-as-you-type.
+        //Busca en nombre y apellidos + sus subcampos de n-gramas de OpenSearch.
+        Query query = Query.of(qb -> qb
+            .multiMatch(mm -> mm
+                .query(q)
+                .fields(List.of(
+                    "nombresAutor",
+                    "nombresAutor._2gram",
+                    "nombresAutor._3gram",
+                    "primerApellidoAutor",
+                    "primerApellidoAutor._2gram",
+                    "primerApellidoAutor._3gram",
+                    "segundoApellidoAutor",
+                    "segundoApellidoAutor._2gram"
+                ))
+                .type(TextQueryType.BoolPrefix)
+            )
+        );
+        
+        //NativeQuery: envoltura de spring-data-opensearch para queries nativas OSC.
+        NativeQuery nativeQuery = NativeQuery.builder()
+            .withQuery(query)
+            .withPageable(PageRequest.of(0, 10))
+            .build();
+            
+        //Ejecutar búsqueda en OpenSearch y mapear resultados a DTO.
+        SearchHits<Autor> hits = elasticsearchOperations.search(nativeQuery, Autor.class);
+        return hits.getSearchHits().stream()
+            .map(hit -> autorDAO.autorDTO(hit.getContent()))
+            .toList();
+    }
 }
 

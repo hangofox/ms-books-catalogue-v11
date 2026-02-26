@@ -12,6 +12,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 /**
 * @Autor HERNAN ADOLFO NUÑEZ GONZALEZ.
@@ -73,5 +74,14 @@ public class AutorController {
         RespuestaDTO respuesta = autorService.eliminarAutor(idAutor);
         HttpStatus httpStatus = respuesta.isBanderaexito() ? HttpStatus.OK : HttpStatus.NOT_FOUND;
         return new ResponseEntity<>(respuesta, httpStatus);
+    }
+    
+    //ENDPOINT SUGERENCIAS DE AUTORES (CRITERIO 1 - SEARCH-AS-YOU-TYPE / FULL-TEXT CON OPENSEARCH):
+    //Usa MultiMatchQuery con tipo bool_prefix sobre los campos search_as_you_type de la entidad Autor.
+    //Ejemplo: GET /autores/sugerencias?q=Gar  →  sugiere autores cuyo nombre/apellido empieza con "Gar"
+    @GetMapping("/autores/sugerencias")
+    public ResponseEntity<List<AutorDTO>> sugerenciasAutores(@RequestParam(defaultValue = "") String q) {
+        List<AutorDTO> sugerencias = autorService.sugerenciasAutores(q);
+        return new ResponseEntity<>(sugerencias, HttpStatus.OK);
     }
 }

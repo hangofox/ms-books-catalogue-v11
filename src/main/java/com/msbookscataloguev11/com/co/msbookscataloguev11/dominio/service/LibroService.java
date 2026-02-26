@@ -2,6 +2,7 @@
 package com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.service;
 
 //IMPORTACIÓN DE LIBRERIAS:
+import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.FacetDTO;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.LibroDTO;
 import com.msbookscataloguev11.com.co.msbookscataloguev11.dominio.dto.RespuestaDTO;
 import org.springframework.data.domain.Pageable;
@@ -87,4 +88,8 @@ public interface LibroService {
     RespuestaDTO agregarCategoriaALibro(Long idLibro, Long idCategoria);
     RespuestaDTO eliminarCategoriaDeLibro(Long idLibro, Long idCategoria);
     RespuestaDTO reemplazarCategoriasDeLibro(Long idLibro, List<Long> categoriasIds);
+    //MÉTODO PARA SUGERENCIAS DE LIBROS (SEARCH-AS-YOU-TYPE + FULL-TEXT CON OPENSEARCH):
+    List<LibroDTO> sugerenciasLibros(String q);
+    //MÉTODO PARA FACETS DE LIBROS (AGGREGATIONS CON OPENSEARCH):
+    List<FacetDTO> facetsLibros();
 }
