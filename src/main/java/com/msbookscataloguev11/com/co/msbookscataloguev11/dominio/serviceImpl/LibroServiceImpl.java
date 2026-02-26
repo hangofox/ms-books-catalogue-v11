@@ -744,20 +744,20 @@ public class LibroServiceImpl implements LibroService {
             ))
             .withPageable(PageRequest.of(0, 1))
             .build();
-
+            
         //Ejecutar el query: nos interesan solo las aggregations, no los hits.
         SearchHits<Libro> searchHits = elasticsearchOperations.search(nativeQuery, Libro.class);
-
+        
         if (searchHits.getAggregations() == null) return List.of();
-
+        
         //Extraer los resultados de aggregations del contenedor de OpenSearch.
         OpenSearchAggregations osAggs = (OpenSearchAggregations) searchHits.getAggregations();
         List<FacetDTO> result = new ArrayList<>();
-
+        
         for (OpenSearchAggregation osa : osAggs.aggregations()) {
             String aggName = osa.aggregation().getName();
             Aggregate agg = osa.aggregation().getAggregate();
-
+            
             if (agg._kind() == Aggregate.Kind.Sterms) {
                 //TermsAggregation sobre campo Keyword: extraer buckets (valor + conteo).
                 List<StringTermsBucket> buckets = agg.sterms().buckets().array();
@@ -767,7 +767,7 @@ public class LibroServiceImpl implements LibroService {
                 result.add(new FacetDTO(aggName, bucketDTOs));
             }
         }
-
+        
         return result;
     }
 }

@@ -222,7 +222,7 @@ public class LibroController {
         List<LibroDTO> sugerencias = libroService.sugerenciasLibros(q);
         return new ResponseEntity<>(sugerencias, HttpStatus.OK);
     }
-
+    
     //ENDPOINT FACETS DE LIBROS (CRITERIO 2 - FACETED SEARCH CON OPENSEARCH AGGREGATIONS):
     //Ejecuta TermsAggregation sobre formatoLibro, estadoLibro y
     //NestedAggregation + TermsAggregation sobre categorias.nombreCategoria.
