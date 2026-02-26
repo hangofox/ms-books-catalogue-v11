@@ -729,16 +729,18 @@ public class LibroServiceImpl implements LibroService {
     @Override
     public List<FacetDTO> facetsLibros() {
         //NativeQuery con matchAll + tres TermsAggregations paralelas a OpenSearch.
+        //Se usa el sufijo .keyword porque el mapeo dinámico de OpenSearch crea los campos
+        //string como text+keyword; la agregación terms requiere el sub-campo keyword.
         NativeQuery nativeQuery = NativeQuery.builder()
             .withQuery(Query.of(q -> q.matchAll(m -> m)))
             .withAggregation("por_formato", Aggregation.of(a -> a
-                .terms(t -> t.field("formatoLibro").size(20))
+                .terms(t -> t.field("formatoLibro.keyword").size(20))
             ))
             .withAggregation("por_estado", Aggregation.of(a -> a
-                .terms(t -> t.field("estadoLibro").size(20))
+                .terms(t -> t.field("estadoLibro.keyword").size(20))
             ))
             .withAggregation("por_categoria", Aggregation.of(a -> a
-                .terms(t -> t.field("categorias.nombreCategoria").size(20))
+                .terms(t -> t.field("categorias.nombreCategoria.keyword").size(20))
             ))
             .withPageable(PageRequest.of(0, 1))
             .build();
