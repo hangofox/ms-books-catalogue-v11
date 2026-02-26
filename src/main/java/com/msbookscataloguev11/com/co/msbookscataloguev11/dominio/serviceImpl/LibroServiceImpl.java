@@ -723,21 +723,12 @@ public class LibroServiceImpl implements LibroService {
     * Ejecuta tres TermsAggregation en un solo query a OpenSearch:
     *   - por_formato   : agrupa libros por formatoLibro (Keyword)  → ej: DIGITAL=5, IMPRESO=12
     *   - por_estado    : agrupa libros por estadoLibro  (Keyword)  → ej: VISIBLE=15, OCULTO=2
-    *   - por_categoria : NestedAggregation sobre categorias[] + TermsAggregation por nombre
+    *   - por_categoria : TermsAggregation sobre categorias.nombreCategoria (Keyword)
     * Permite al frontend mostrar filtros con conteos reales sin consultas adicionales.
     */
     @Override
     public List<FacetDTO> facetsLibros() {
-        
-        //Aggregation para categorias: Nested (accede al array embebido) + Terms sobre nombre.
-        Aggregation aggCategoria = new Aggregation.Builder()
-            .nested(n -> n.path("categorias"))
-            .aggregations("por_nombre", Aggregation.of(sa -> sa
-                .terms(t -> t.field("categorias.nombreCategoria").size(20))
-            ))
-            .build();
-            
-        //NativeQuery con matchAll + tres aggregations paralelas a OpenSearch.
+        //NativeQuery con matchAll + tres TermsAggregations paralelas a OpenSearch.
         NativeQuery nativeQuery = NativeQuery.builder()
             .withQuery(Query.of(q -> q.matchAll(m -> m)))
             .withAggregation("por_formato", Aggregation.of(a -> a
@@ -746,23 +737,25 @@ public class LibroServiceImpl implements LibroService {
             .withAggregation("por_estado", Aggregation.of(a -> a
                 .terms(t -> t.field("estadoLibro").size(20))
             ))
-            .withAggregation("por_categoria", aggCategoria)
+            .withAggregation("por_categoria", Aggregation.of(a -> a
+                .terms(t -> t.field("categorias.nombreCategoria").size(20))
+            ))
             .withPageable(PageRequest.of(0, 1))
             .build();
-            
+
         //Ejecutar el query: nos interesan solo las aggregations, no los hits.
         SearchHits<Libro> searchHits = elasticsearchOperations.search(nativeQuery, Libro.class);
-        
+
         if (searchHits.getAggregations() == null) return List.of();
-        
+
         //Extraer los resultados de aggregations del contenedor de OpenSearch.
         OpenSearchAggregations osAggs = (OpenSearchAggregations) searchHits.getAggregations();
         List<FacetDTO> result = new ArrayList<>();
-        
+
         for (OpenSearchAggregation osa : osAggs.aggregations()) {
             String aggName = osa.aggregation().getName();
             Aggregate agg = osa.aggregation().getAggregate();
-            
+
             if (agg._kind() == Aggregate.Kind.Sterms) {
                 //TermsAggregation sobre campo Keyword: extraer buckets (valor + conteo).
                 List<StringTermsBucket> buckets = agg.sterms().buckets().array();
@@ -770,19 +763,9 @@ public class LibroServiceImpl implements LibroService {
                     .map(b -> new FacetDTO.BucketDTO(b.key(), b.docCount()))
                     .toList();
                 result.add(new FacetDTO(aggName, bucketDTOs));
-            } else if (agg._kind() == Aggregate.Kind.Nested) {
-                //NestedAggregation: acceder a la sub-aggregation "por_nombre" dentro de categorias[].
-                Aggregate subAgg = agg.nested().aggregations().get("por_nombre");
-                if (subAgg != null && subAgg._kind() == Aggregate.Kind.Sterms) {
-                    List<StringTermsBucket> buckets = subAgg.sterms().buckets().array();
-                    List<FacetDTO.BucketDTO> bucketDTOs = buckets.stream()
-                        .map(b -> new FacetDTO.BucketDTO(b.key(), b.docCount()))
-                        .toList();
-                    result.add(new FacetDTO("por_categoria", bucketDTOs));
-                }
             }
         }
-        
+
         return result;
     }
 }
